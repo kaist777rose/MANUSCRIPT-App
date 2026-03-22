@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -705,6 +705,77 @@
   .export-opt-title { font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 800; color: var(--text-strong); }
   .export-opt-desc { font-size: 11px; color: var(--muted); font-weight: 700; margin-top: 2px; }
 
+  /* ── RESULT CARDS (center panel) ── */
+  #analysis-results-container {
+    padding: 20px 32px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .result-card {
+    background: #fff;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    animation: fadeUp 0.4s ease;
+  }
+
+  .result-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: #f0ebe0;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .result-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .result-card-mode {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--amber);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .result-card-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  .result-save-btn {
+    padding: 4px 10px;
+    background: #fff;
+    border: 2px solid var(--border);
+    border-radius: 3px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .result-save-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+  .result-card-body {
+    padding: 20px 24px;
+    font-family: 'Noto Serif KR', serif;
+    font-size: 14px;
+    line-height: 1.9;
+    color: var(--text-strong);
+    font-weight: 700;
+  }
+
   /* ── NOTES MODAL ── */
   #notes-modal .modal { width: 620px; }
 
@@ -854,7 +925,7 @@
       </div>
     </div>
 
-    <!-- CENTER: Editor -->
+    <!-- CENTER: Editor + Analysis Results -->
     <div class="editor-area">
       <div class="editor-toolbar">
         <div class="toolbar-group">
@@ -879,7 +950,8 @@
         <span class="manuscript-title" id="ms-title">새 원고</span>
       </div>
 
-      <div class="editor-scroll">
+      <!-- Single scrollable area: manuscript + analysis results below -->
+      <div class="editor-scroll" id="editor-view">
         <textarea id="manuscript-editor"
           placeholder="여기에 원고를 붙여넣거나 직접 작성하세요…
 세계 최고의 AI 편집자가 당신의 원고를 읽고 있습니다.
@@ -889,17 +961,27 @@
           oninput="updateStats()"
           onselect="handleSelection()"
         ></textarea>
+
+        <!-- Analysis results appear here, below the manuscript -->
+        <div id="analysis-results-container" style="display:none">
+          <div style="margin:32px 0 16px;display:flex;align-items:center;gap:12px">
+            <div style="flex:1;height:2px;background:var(--border)"></div>
+            <span style="font-family:'Space Mono',monospace;font-size:10px;font-weight:800;color:var(--amber);letter-spacing:0.2em;text-transform:uppercase">✦ AI 분석 결과</span>
+            <div style="flex:1;height:2px;background:var(--border)"></div>
+          </div>
+          <div id="analysis-results-inner"></div>
+        </div>
       </div>
     </div>
 
-    <!-- RIGHT: AI Chat -->
+    <!-- RIGHT: AI Input Only -->
     <div class="panel-right">
       <div class="ai-header">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div class="ai-title">✦ AI 편집자</div>
           <div style="display:flex;gap:6px">
-            <button class="toolbar-btn" style="font-size:11px;padding:5px 10px" onclick="saveChatSnapshot()">💾 분석 저장</button>
-            <button class="toolbar-btn" style="font-size:11px;padding:5px 10px" onclick="openNotesModal()">📋 저장 노트</button>
+            <button class="toolbar-btn" style="font-size:11px;padding:5px 10px" onclick="saveChatSnapshot()">💾 저장</button>
+            <button class="toolbar-btn" style="font-size:11px;padding:5px 10px" onclick="openNotesModal()">📋 노트</button>
           </div>
         </div>
         <div class="ai-subtitle" id="ai-persona-desc">수석 편집장 모드 — 전방위 원고 분석</div>
@@ -912,26 +994,24 @@
         <div class="ai-mode-chip" onclick="setChip(this,'ja')" data-lang="ja">日本語</div>
       </div>
 
-      <div class="ai-conversation" id="ai-chat">
-        <div class="message system">
-          원고를 작성하거나 붙여넣은 후,<br>아래 버튼을 누르거나 직접 질문하세요.
+      <!-- Compact chat log -->
+      <div class="ai-conversation" id="ai-chat" style="flex:1;min-height:0">
+        <div class="message system" style="font-size:11px">
+          분석 결과는 <strong>원고 바로 아래</strong> 이어서 표시됩니다 ↓
         </div>
         <div class="message assistant">
-          <div class="message-role">✦ 수석 편집장</div>
-          안녕하세요. 저는 당신의 원고를 세계 최고 수준으로 끌어올릴 AI 편집자입니다.<br><br>
-          원고를 입력하시면 <strong>문체, 플롯, 캐릭터, 대화, 감정 밀도</strong>를 종합 분석하고 즉시 실행 가능한 개선안을 드립니다.<br><br>
-          왼쪽에서 원하는 편집 모드를 선택하거나, 원고 일부를 선택해 분석을 요청해보세요.
+          <div class="message-role">⚜️ 수석 편집장</div>
+          원고를 입력하고 <strong>⚡ 전체 분석</strong>을 눌러주세요.<br>결과가 원고 아래 바로 이어집니다.
         </div>
       </div>
 
       <div class="ai-input-area">
         <div class="input-wrapper">
           <textarea id="ai-prompt"
-            placeholder="편집 요청을 입력하세요… (예: 1장 도입부를 더 강렬하게 만들어줘)"
+            placeholder="편집 요청 입력… (예: 도입부를 더 강렬하게)"
             onkeydown="handlePromptKey(event)"></textarea>
           <button class="send-btn" id="send-btn" onclick="sendMessage()">↑</button>
         </div>
-        <!-- Pause / Resume / New Start bar — shown during loading -->
         <div id="ai-control-bar" style="display:none;margin-top:8px;gap:8px;align-items:center">
           <button id="pause-btn" class="quick-btn" style="border-color:#e09000;color:#e09000;font-weight:800" onclick="togglePause()">⏸ 일시정지</button>
           <button class="quick-btn" style="border-color:#c0392b;color:#c0392b;font-weight:800" onclick="stopAnalysis()">⏹ 중단</button>
@@ -1380,11 +1460,12 @@ function runAnalysis() {
   const text = document.getElementById('manuscript-editor').value;
   if (!text.trim()) { showToast('원고를 먼저 입력해주세요'); return; }
   const excerpt = text.substring(0, 15000);
-  const prompt = `다음 원고를 전방위 분석해주세요. 각 항목별 점수(0-100)도 JSON 형태로 제시해주세요:
+  const fullPrompt = `다음 원고를 전방위 분석해주세요. 각 항목별 점수(0-100)도 JSON 형태로 제시해주세요:
 점수 형식: {"style":85,"engage":78,"pace":72,"dialog":80,"emotion":75}
 
 원고:\n${excerpt}${text.length > 15000 ? '\n...(이하 생략)' : ''}`;
-  sendToAPI(prompt);
+  // Pass clean display label as second argument
+  sendToAPI(fullPrompt, '⚡ 전체 원고 종합 분석');
 }
 
 function reformatParagraphs() {
@@ -1643,7 +1724,13 @@ function newSession() {
   if (scEl) scEl.textContent = '1 / 1';
   updateStats();
 
-  // 5. Clear chat UI
+  // 5. Clear inline analysis results
+  const inner = document.getElementById('analysis-results-inner');
+  const container = document.getElementById('analysis-results-container');
+  if (inner) inner.innerHTML = '';
+  if (container) container.style.display = 'none';
+
+  // 6. Clear chat UI
   const chat = document.getElementById('ai-chat');
   chat.innerHTML = `
     <div class="message system">✦ 새 원고 세션이 시작되었습니다</div>
@@ -1670,6 +1757,62 @@ function newSession() {
   if (window.innerWidth <= 900) switchTab('editor');
 
   showToast('✅ 새 세션 시작 — 이전 원고는 저장됐습니다');
+}
+
+// ── EDITOR VIEW TOGGLE (simplified - no tab switching needed) ──
+function setEditorView(view) {
+  // No-op - single view now, results always inline below manuscript
+}
+
+// ── ADD RESULT INLINE BELOW MANUSCRIPT ──
+function addResultToCenter(role, text, extra) {
+  const container = document.getElementById('analysis-results-container');
+  const inner = document.getElementById('analysis-results-inner');
+  if (!container || !inner) return;
+
+  // Show the results section
+  container.style.display = 'block';
+
+  const persona = PERSONAS[state.currentMode];
+  const resultId = 'result_' + Date.now();
+  const timestamp = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+
+  const div = document.createElement('div');
+  div.className = 'result-card';
+  div.id = resultId;
+  if (extra?.revised) div.dataset.revised = extra.revised;
+
+  div.innerHTML = `
+    <div class="result-card-header">
+      <div class="result-card-meta">
+        <span class="result-card-mode">${persona.icon} ${persona.name}</span>
+        <span class="result-card-time">${timestamp}</span>
+      </div>
+      <button onclick="saveResultNote('${resultId}')" class="result-save-btn">💾 저장</button>
+    </div>
+    <div class="result-card-body">${formatAIResponse(text)}</div>
+    ${extra?.applyBar || ''}
+  `;
+
+  inner.prepend(div);
+
+  // Scroll down to show results
+  setTimeout(() => {
+    div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+
+  showToast('✦ 분석 완료 — 원고 아래로 스크롤하세요 ↓');
+
+  return div;
+}
+
+function saveResultNote(resultId) {
+  const el = document.getElementById(resultId);
+  if (!el) return;
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('button').forEach(b => b.remove());
+  savePartialNote(clone.innerText || clone.textContent || '', '분석 결과');
+  showToast('💾 분석 결과가 저장됐습니다');
 }
 
 // ── AI CHAT ──
@@ -1750,7 +1893,7 @@ async function callAPI(systemPrompt, contextMsg, maxTokens = 4000) {
   return data;
 }
 
-async function sendToAPI(userMsg) {
+async function sendToAPI(userMsg, displayMsg) {
   if (state.isLoading) return;
 
   if (isPaused) {
@@ -1777,7 +1920,7 @@ async function sendToAPI(userMsg) {
 
   // Long manuscript + direct edit → automatic chunk editing
   if (isDirectEdit && manuscriptLen > CHUNK_SIZE) {
-    addMessage('user', userMsg);
+    addMessage('user', displayMsg || 'AI 직접 수정 요청');
     state.isLoading = false;
     document.getElementById('send-btn').disabled = false;
     showControlBar(false);
@@ -1789,11 +1932,11 @@ async function sendToAPI(userMsg) {
     ? `\n\n중요: 사용자가 원고 직접 수정을 원합니다. 반드시 다음 형식으로 응답하세요:\n[분석/설명 내용 — 간략하게]\n\n---REVISED_MANUSCRIPT_START---\n(수정된 원고 전문. 반드시 끝까지 완성)\n---REVISED_MANUSCRIPT_END---`
     : '';
 
-  addMessage('user', userMsg);
+  // Show clean label in right panel (not full prompt with manuscript)
+  addMessage('user', displayMsg || userMsg);
   const loadingId = addLoadingMessage();
 
   const systemPrompt = SYSTEM_PROMPTS[state.currentMode] + '\n' + langInstructions[state.currentLang] + directEditInstruction;
-  // Limit context to 20000 chars max to avoid Safari EOF on large responses
   const maxCtx = isDirectEdit ? 15000 : 20000;
   const contextMsg = manuscript.trim()
     ? `[현재 편집 중인 원고]:\n${manuscript.substring(0, maxCtx)}${manuscript.length > maxCtx ? '\n...(이하 생략)' : ''}\n\n[사용자 요청]: ${userMsg}`
@@ -1889,19 +2032,21 @@ function addMessage(role, text) {
 
   if (role === 'user') {
     div.innerHTML = `<div class="message-role">작가</div>${escapeHtml(text).replace(/\n/g, '<br>')}`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
   } else if (role === 'assistant') {
-    div.innerHTML = `
-      <div class="message-role" style="display:flex;justify-content:space-between;align-items:center">
-        <span>${persona.icon} ${persona.name}</span>
-        <button onclick="saveMessageNote('${msgId}')" style="background:none;border:1px solid var(--border);border-radius:3px;padding:2px 8px;font-family:'Space Mono',monospace;font-size:9px;font-weight:800;color:var(--muted);cursor:pointer" title="이 분석 저장">💾 저장</button>
-      </div>
-      ${formatAIResponse(text)}`;
+    // Route to inline results below manuscript
+    addResultToCenter(role, text, null);
+    // Compact indicator in right panel
+    div.innerHTML = `<div class="message-role">⚜️ 분석 완료 ↓ 원고 아래 확인</div>`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
   } else {
     div.innerHTML = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
   }
 
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
   return div;
 }
 
@@ -1920,11 +2065,7 @@ function addMessageWithApply(role, displayText, revisedText, isTruncated = false
       </div>
     </div>` : '';
 
-  const div = document.createElement('div');
-  div.className = 'message assistant';
-  div.innerHTML = `
-    <div class="message-role">${persona.icon} ${persona.name}</div>
-    ${formatAIResponse(displayText)}
+  const applyBarHtml = `
     ${truncatedNote}
     <div class="apply-bar">
       <div class="apply-bar-label">✦ 수정본이 준비되었습니다${isTruncated ? ' (부분)' : ''}</div>
@@ -1932,14 +2073,23 @@ function addMessageWithApply(role, displayText, revisedText, isTruncated = false
         <button class="apply-bar-btn primary" onclick="applyRevision('${msgId}')">✅ 원고에 즉시 적용</button>
         <button class="apply-bar-btn" onclick="compareRevision('${msgId}')">↔ 원본과 비교</button>
       </div>
-    </div>
-  `;
-  div.dataset.revised = revisedText;
-  div.id = msgId;
+    </div>`;
 
-  chat.appendChild(div);
+  // Add to center results panel
+  const resultDiv = addResultToCenter(role, displayText, { revised: revisedText, applyBar: applyBarHtml });
+  if (resultDiv) {
+    resultDiv.id = msgId;
+    resultDiv.dataset.revised = revisedText;
+  }
+
+  // Compact indicator in right panel
+  const indicatorDiv = document.createElement('div');
+  indicatorDiv.className = 'message assistant';
+  indicatorDiv.innerHTML = `<div class="message-role">✦ 수정본 준비 ↓ 원고 아래 확인</div>`;
+  chat.appendChild(indicatorDiv);
   chat.scrollTop = chat.scrollHeight;
-  showToast(isTruncated ? '⚠️ 수정본이 잘렸습니다 — 이어서 작성 버튼을 누르세요' : '✦ 수정본 준비 완료 — 즉시 적용 버튼을 누르세요');
+
+  showToast(isTruncated ? '⚠️ 수정본이 잘렸습니다' : '✦ 수정본 준비 — 📋 분석 결과 탭 확인');
 }
 
 // ── CONTINUE CUT-OFF REWRITE ──
