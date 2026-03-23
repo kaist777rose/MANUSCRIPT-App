@@ -985,6 +985,20 @@
           </div>
         </div>
         <div class="ai-subtitle" id="ai-persona-desc">수석 편집장 모드 — 전방위 원고 분석</div>
+
+        <!-- API Key Input -->
+        <div id="api-key-section" style="margin-top:10px;padding:10px;background:var(--amber-glow);border-radius:8px;border:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:800;color:var(--amber);letter-spacing:0.1em;margin-bottom:6px">🔑 ANTHROPIC API KEY</div>
+          <div style="display:flex;gap:6px">
+            <input type="password" id="api-key-input"
+              placeholder="sk-ant-..."
+              style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:#fff;font-family:'Space Mono',monospace"
+              oninput="checkApiKey()"
+            />
+            <button onclick="saveApiKey()" class="toolbar-btn" style="font-size:11px;padding:5px 10px;white-space:nowrap">저장</button>
+          </div>
+          <div id="api-key-status" style="font-size:10px;margin-top:4px;color:var(--muted)">API 키를 입력하고 저장하세요</div>
+        </div>
       </div>
 
       <div class="ai-mode-selector">
@@ -1840,6 +1854,12 @@ let cancelRequested = false;
 async function callAPI(systemPrompt, contextMsg, maxTokens = 4000) {
   cancelRequested = false;
 
+  // Get API key from localStorage
+  const apiKey = localStorage.getItem('manuscript_api_key') || '';
+  if (!apiKey) {
+    throw new Error('API 키가 없습니다. 오른쪽 패널에서 API 키를 입력해주세요.');
+  }
+
   // Sanitize strings
   const safeSystem = systemPrompt.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
   const safeContext = contextMsg.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
@@ -1861,6 +1881,8 @@ async function callAPI(systemPrompt, contextMsg, maxTokens = 4000) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: bodyStr
@@ -1885,7 +1907,6 @@ async function callAPI(systemPrompt, contextMsg, maxTokens = 4000) {
   try {
     data = JSON.parse(trimmed);
   } catch(e) {
-    // If we get EOF or parse error, throw a specific retriable error
     const isEOF = e.message.includes('EOF') || e.message.includes('Unexpected end') || e.message.includes('Unexpected token');
     if (isEOF) {
       throw new Error('EOF — 응답이 잘렸습니다. 재시도하거나 요청을 짧게 나눠주세요.');
@@ -2569,6 +2590,56 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// ── API KEY ──
+function saveApiKey() {
+  const input = document.getElementById('api-key-input');
+  const key = input.value.trim();
+  if (!key) { showToast('API 키를 입력해주세요'); return; }
+  if (!key.startsWith('sk-ant-')) {
+    showToast('올바른 Anthropic API 키가 아닙니다 (sk-ant-로 시작해야 함)');
+    return;
+  }
+  localStorage.setItem('manuscript_api_key', key);
+  updateApiKeyStatus();
+  showToast('✅ API 키가 저장됐습니다');
+}
+
+function checkApiKey() {
+  const input = document.getElementById('api-key-input');
+  const key = input.value.trim();
+  const status = document.getElementById('api-key-status');
+  if (!status) return;
+  if (!key) {
+    status.textContent = 'API 키를 입력하고 저장하세요';
+    status.style.color = 'var(--muted)';
+  } else if (!key.startsWith('sk-ant-')) {
+    status.textContent = '⚠️ sk-ant-로 시작하는 키를 입력하세요';
+    status.style.color = '#c0392b';
+  } else {
+    status.textContent = '↑ 저장 버튼을 눌러주세요';
+    status.style.color = 'var(--amber)';
+  }
+}
+
+function updateApiKeyStatus() {
+  const stored = localStorage.getItem('manuscript_api_key') || '';
+  const input = document.getElementById('api-key-input');
+  const status = document.getElementById('api-key-status');
+  const section = document.getElementById('api-key-section');
+  if (!input || !status) return;
+  if (stored) {
+    input.value = stored;
+    input.type = 'password';
+    status.textContent = '✅ API 키 저장됨 — AI 편집자 사용 가능';
+    status.style.color = '#2e7a2e';
+    if (section) section.style.borderColor = '#2e7a2e';
+  } else {
+    status.textContent = '❌ API 키 없음 — 입력 후 저장하세요';
+    status.style.color = '#c0392b';
+    if (section) section.style.borderColor = '#c0392b';
+  }
+}
+
 // ── INIT ──
 function init() {
   const saved = localStorage.getItem('manuscript_data');
@@ -2591,6 +2662,9 @@ function init() {
   if (window.innerWidth <= 900) {
     switchTab('editor');
   }
+
+  // Load API key if saved
+  updateApiKeyStatus();
 }
 
 function setView(v) {
