@@ -451,7 +451,30 @@
   .quick-actions {
     display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px;
   }
-  .quick-btn {
+  .style-chip {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.style-chip:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.style-chip.active {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #fff;
+}
+
+.quick-btn {
     padding: 5px 11px;
     background: #fff;
     border: 2px solid var(--border);
@@ -1020,6 +1043,26 @@
       </div>
 
       <div class="ai-input-area">
+
+        <!-- ✦ WRITING STYLE SELECTOR -->
+        <div style="margin-bottom:10px">
+          <div style="font-family:'Space Mono',monospace;font-size:9px;font-weight:800;color:var(--amber);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px">✦ 문체 스타일</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px" id="style-chips">
+            <button class="style-chip active" data-style="default" onclick="setStyleChip(this)">🖊 원문 유지</button>
+            <button class="style-chip" data-style="coelho" onclick="setStyleChip(this)">✨ 파올로 코엘료</button>
+            <button class="style-chip" data-style="haruki" onclick="setStyleChip(this)">🎵 무라카미 하루키</button>
+            <button class="style-chip" data-style="korean" onclick="setStyleChip(this)">📚 박경리·조정래</button>
+            <button class="style-chip" data-style="custom" onclick="setStyleChip(this)">✏️ 직접 입력</button>
+          </div>
+          <div id="custom-style-wrap" style="display:none;margin-top:6px">
+            <input type="text" id="custom-style-input"
+              placeholder="예: 헤밍웨이처럼 간결하게, 시적 산문체로..."
+              style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:'Noto Serif KR',serif;box-sizing:border-box"
+            />
+          </div>
+          <div id="style-desc" style="font-size:10px;color:var(--muted);margin-top:5px;font-style:italic;font-weight:600;line-height:1.5">원문 스타일을 그대로 유지합니다</div>
+        </div>
+
         <div class="input-wrapper">
           <textarea id="ai-prompt"
             placeholder="편집 요청 입력… (예: 도입부를 더 강렬하게)"
@@ -1961,7 +2004,8 @@ async function sendToAPI(userMsg, displayMsg) {
   addMessage('user', displayMsg || userMsg);
   const loadingId = addLoadingMessage();
 
-  const systemPrompt = SYSTEM_PROMPTS[state.currentMode] + '\n' + langInstructions[state.currentLang] + directEditInstruction;
+  const stylePrompt = getStylePrompt();
+  const systemPrompt = SYSTEM_PROMPTS[state.currentMode] + '\n' + langInstructions[state.currentLang] + (stylePrompt ? '\n\n' + stylePrompt : '') + directEditInstruction;
   const maxCtx = isDirectEdit ? 10000 : 6000;
   const contextMsg = manuscript.trim()
     ? `[현재 편집 중인 원고]:\n${manuscript.substring(0, maxCtx)}${manuscript.length > maxCtx ? '\n...(이하 생략)' : ''}\n\n[사용자 요청]: ${userMsg}`
@@ -2588,6 +2632,78 @@ function showToast(msg) {
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── WRITING STYLE ──
+const WRITING_STYLES = {
+  default: {
+    label: '원문 유지',
+    desc: '원문 스타일을 그대로 유지합니다',
+    prompt: ''
+  },
+  coelho: {
+    label: '파올로 코엘료',
+    desc: '우화적·영적 문체. 단순하고 보편적인 문장, 철학을 이야기 안에 자연스럽게 녹임',
+    prompt: `문체 지침 (파올로 코엘료 스타일):
+- 단순하고 보편적인 문장으로 누구나 읽을 수 있게
+- 철학적 메시지를 설명하지 말고 이야기 안에 녹여라
+- 반복되는 상징과 징표로 서사를 이끌어라
+- 독자에게 직접 말을 거는 예언자적 어조
+- 짧은 단락, 명언처럼 기억되는 문장들
+- "그는 알았다" "그것이 답이었다" 같은 단호한 종결
+- 과도한 설명 제거, 여백과 침묵을 문장으로 표현`
+  },
+  haruki: {
+    label: '무라카미 하루키',
+    desc: '감각적 디테일, 일상과 초현실의 공존, 재즈같은 리듬',
+    prompt: `문체 지침 (무라카미 하루키 스타일):
+- 구체적이고 감각적인 디테일로 장면을 그려라 (냄새, 소리, 촉감)
+- 일상적 사실과 초현실이 자연스럽게 공존하게
+- 감정을 직접 말하지 말고 행동과 사물로 표현
+- 반복과 변주가 있는 음악적 리듬 (재즈처럼)
+- 짧은 문장과 긴 문장을 교차하며 호흡 조절
+- 고독과 상실을 담담하게, 과장 없이
+- "그리고" "그러나" 대신 문장을 끊어 여백을 줘라`
+  },
+  korean: {
+    label: '박경리·조정래',
+    desc: '한국 정통 대하소설. 묵직한 서술, 인물 내면의 전지적 해설',
+    prompt: `문체 지침 (박경리·조정래 한국 정통 대하소설 스타일):
+- 전지적 서술자가 인물의 내면을 직접 해설하는 방식
+- 역사적·신화적 무게감을 담은 묵직한 장문 허용
+- 감정은 절제하되 서술이 축적되어 폭발하는 방식
+- 한국어의 리듬감을 살린 토속적이고 구체적인 묘사
+- 인물의 심리를 "~했다. ~이었다" 단언으로 서술
+- 자연·계절·풍경을 인물의 감정과 연결
+- 대화는 간결하되 그 안에 많은 것을 함축`
+  },
+  custom: {
+    label: '직접 입력',
+    desc: '원하는 문체 스타일을 직접 입력하세요',
+    prompt: ''
+  }
+};
+
+let currentStyle = 'default';
+
+function setStyleChip(btn) {
+  document.querySelectorAll('.style-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  currentStyle = btn.dataset.style;
+  const styleInfo = WRITING_STYLES[currentStyle];
+  const desc = document.getElementById('style-desc');
+  if (desc) desc.textContent = styleInfo.desc;
+  const customWrap = document.getElementById('custom-style-wrap');
+  if (customWrap) customWrap.style.display = currentStyle === 'custom' ? 'block' : 'none';
+}
+
+function getStylePrompt() {
+  if (currentStyle === 'custom') {
+    const input = document.getElementById('custom-style-input');
+    const val = input ? input.value.trim() : '';
+    return val ? `문체 지침 (사용자 정의):\n${val}` : '';
+  }
+  return WRITING_STYLES[currentStyle]?.prompt || '';
 }
 
 // ── API KEY ──
