@@ -1459,12 +1459,16 @@ function applyPartialChunks() {
 function runAnalysis() {
   const text = document.getElementById('manuscript-editor').value;
   if (!text.trim()) { showToast('원고를 먼저 입력해주세요'); return; }
-  const excerpt = text.substring(0, 15000);
-  const fullPrompt = `다음 원고를 전방위 분석해주세요. 각 항목별 점수(0-100)도 JSON 형태로 제시해주세요:
-점수 형식: {"style":85,"engage":78,"pace":72,"dialog":80,"emotion":75}
+  // 6000자로 제한 — 응답 잘림 방지
+  const excerpt = text.substring(0, 6000);
+  const fullPrompt = `다음 원고 발췌를 분석해주세요. 반드시 아래 형식으로 간결하게 답하세요.
 
-원고:\n${excerpt}${text.length > 15000 ? '\n...(이하 생략)' : ''}`;
-  // Pass clean display label as second argument
+1) 점수(JSON): {"style":0,"engage":0,"pace":0,"dialog":0,"emotion":0}
+2) 핵심 강점 3가지 (각 2문장 이내)
+3) 즉시 개선점 3가지 (각 2문장 이내)
+4) 총평 (3문장 이내)
+
+원고:\n${excerpt}${text.length > 6000 ? '\n...(이하 생략)' : ''}`;
   sendToAPI(fullPrompt, '⚡ 전체 원고 종합 분석');
 }
 
@@ -1937,13 +1941,13 @@ async function sendToAPI(userMsg, displayMsg) {
   const loadingId = addLoadingMessage();
 
   const systemPrompt = SYSTEM_PROMPTS[state.currentMode] + '\n' + langInstructions[state.currentLang] + directEditInstruction;
-  const maxCtx = isDirectEdit ? 15000 : 20000;
+  const maxCtx = isDirectEdit ? 10000 : 6000;
   const contextMsg = manuscript.trim()
     ? `[현재 편집 중인 원고]:\n${manuscript.substring(0, maxCtx)}${manuscript.length > maxCtx ? '\n...(이하 생략)' : ''}\n\n[사용자 요청]: ${userMsg}`
     : userMsg;
 
   try {
-    const data = await callAPI(systemPrompt, contextMsg, isDirectEdit ? 5000 : 3000);
+    const data = await callAPI(systemPrompt, contextMsg, isDirectEdit ? 4000 : 1500);
     removeLoadingMessage(loadingId);
 
     if (data.content && data.content[0]) {
